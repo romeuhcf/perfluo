@@ -9,3 +9,5 @@
 .byebug_history
 # rspec failure tracking
 .rspec_status
+coverage.vim
+bin/memo-romeu.yml

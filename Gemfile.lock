@@ -69,6 +69,7 @@ GEM
       json (>= 1.8, < 3)
       simplecov-html (~> 0.10.0)
     simplecov-html (0.10.2)
+    simplecov-vim (0.0.1)
     thor (0.20.0)
 
 PLATFORMS
@@ -84,6 +85,7 @@ DEPENDENCIES
   rake
   rspec
   simplecov
+  simplecov-vim
 
 BUNDLED WITH
    1.16.1

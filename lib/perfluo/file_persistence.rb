@@ -1,6 +1,16 @@
-require 'json'
+require 'yaml'
 module Perfluo
-  class JsonPersistence
+
+  class NullPersistence
+    def memo
+      @_memo ||= {}
+    end
+    def save!
+
+    end
+  end
+
+  class FilePersistence
     attr_accessor :memory_file
     def initialize(memory_file)
       @memory_file = memory_file
@@ -9,7 +19,7 @@ module Perfluo
     def memo
       @_memo ||= begin
                    File.open(memory_file, 'r') do |fd|
-                     JSON.parse(fd.read)
+                     YAML.load(fd.read)
                    end
                  rescue
                    {}
@@ -18,11 +28,9 @@ module Perfluo
 
     def save!
       File.open(memory_file, 'w') do |fd|
-        fd.write(JSON.pretty_generate(memo))
+        fd.write(YAML.dump(memo))
       end
     end
-
-
   end
 end
 

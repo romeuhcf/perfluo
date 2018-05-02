@@ -1,9 +1,15 @@
 require "bundler/setup"
-require 'simplecov'
 require 'byebug'
-SimpleCov.start
+require 'simplecov'
+require 'pp'
+require 'simplecov-vim/formatter'
+SimpleCov.start do
+  formatter SimpleCov::Formatter::MultiFormatter.new [
+    SimpleCov::Formatter::VimFormatter,
+    SimpleCov::Formatter::HTMLFormatter
+  ]
+end
 require "perfluo"
-
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure
   config.example_status_persistence_file_path = ".rspec_status"

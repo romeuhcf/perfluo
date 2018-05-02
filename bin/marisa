@@ -1,0 +1,36 @@
+#!/usr/bin/env ruby
+
+require "bundler/setup"
+require "perfluo"
+
+marisa = Perfluo::Bot.new
+
+
+marisa.setup do
+  listen /(tu?do? b.*|vo?ce? est.*|blz).*\?/i do 
+    if n = remember_that?('disse_que_to_bem')
+      if n > 2
+        say "ja disse que to bem #{n} vezes, vc é surdo?" 
+      else
+        say "ja disse que to bem"
+      end
+    else
+      if remember_that?('perguntei_como_está')
+        say "tudo bem"
+      else
+        say "td bem, e vc?"
+        remember_that!('perguntei_como_está')
+      end
+    end
+    remember_that!('disse_que_to_bem')
+  end
+end
+
+memofile = "memo-#{ARGV.shift}.yml"
+
+
+marisa.persistence = Perfluo::FilePersistence.new(memofile)
+
+marisa.react_to_listen ARGV.flatten.join(' ') 
+puts marisa.output.content
+marisa.save! 

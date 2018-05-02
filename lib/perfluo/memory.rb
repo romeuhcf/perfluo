@@ -1,4 +1,4 @@
-require_relative 'json_persistence'
+require_relative 'file_persistence'
 module Perfluo
   module Memory
     def memo
@@ -6,7 +6,7 @@ module Perfluo
     end
 
     def persistence
-      @persistence ||= JsonPersistence.new('persistence.json')
+      @persistence ||= NullPersistence.new
     end
 
      def persistence=(p)
@@ -22,7 +22,7 @@ module Perfluo
       memo['listened'].last
     end
 =end
-        def remember_that?(algo)
+    def remember_that?(algo)
       n = flags[algo]
       n && (n == 0 ? nil : n)
     end
@@ -33,7 +33,7 @@ module Perfluo
     end
     private
     def flags
-      memo['flags']||= {}
+      memo['flags'] ||= {}
       memo['flags']
     end
 

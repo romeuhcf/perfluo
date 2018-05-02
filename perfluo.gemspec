@@ -38,5 +38,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "guard-bundler"
   spec.add_development_dependency "guard"
   spec.add_development_dependency "simplecov"
+  spec.add_development_dependency "simplecov-vim"
   spec.add_dependency "json"
 end

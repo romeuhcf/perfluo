@@ -1,6 +1,64 @@
-#!/usr/bin/env ruby
-require 'json'
-require 'perfluo'
+module Perfluo
+  RSpec.describe "#prompt" do
+    let(:bot) { Bot.new }
+    let(:persistence_file) { "/tmp/memo-#{rand(100000)}.yml"}
+    before do
+      bot.setup do
+        set_prompt :age, [["How old are you?"], ["One more question...","what's your age?"]] do
+          preprocess ->(v) { v.to_s.strip.to_i }
+=begin
+          retries 3
+          validates do |value|
+            fail "you're unborn!" if value.to_i < 0
+          end
+
+          success do
+            say "nice"
+            if memo(:age) > 18
+              say "let's play chess"
+              change_subject '/chess'
+            else
+              say "let's play checkers"
+              change_subject '/checkers'
+            end
+          end
+
+          failure do
+            say "can't understand what you're sayin'. Ill notify my manager"
+            change_subject '/'
+            say "could I do anything else for you?"
+          end
+=end
+        end
+      end
+
+    end
+
+    it "keeps value at memo if valid" do
+      bot.persistence = FilePersistence.new(persistence_file)
+      bot.prompt(:age)
+      expect(bot.output.content).to match(/(old are you|your age)/)
+      bot.save!
+
+      bot.persistence = FilePersistence.new(persistence_file)
+      expect(bot).to be_prompting_something
+      expect{bot.react_to_listen('22')}.to change{bot.memo[:age]}.to(22)
+      bot.save!
+
+      bot.persistence = FilePersistence.new(persistence_file)
+      expect(bot).to_not be_prompting_something
+      expect(bot.memo[:age]).to eq(22)
+
+    end
+
+    context "having retries" do
+      it "asks for the number of retries if defined"
+      it "calls alternative flow when quit"
+    end
+    it "can trigger flow on success"
+  end
+end
+
 module Perfluo
   RSpec.describe "Memory" do
     let(:bot) { Bot.new }
@@ -47,6 +105,27 @@ module Perfluo
 
       it "reacts to what we say when matching" do
         expect(output).to eq "oi"
+      end
+    end
+
+    describe "#say" do
+      before do
+        bot.setup do
+          listen // do
+            if memo[:name]
+              say "Hi, #{memo[:name]}"
+            else
+              say "Hello"
+            end
+          end
+        end
+        bot.memo[:name] = 'John'
+      end
+      let(:output) {bot.react_to_listen(input);bot.output.content }
+      let(:input) {'Howwdy'}
+
+      it "talks interpolated" do
+        expect(output).to eq 'Hi, John'
       end
     end
 
@@ -148,6 +227,20 @@ module Perfluo
 
     describe "#save!" do
       it { expect{bot.save!}.to_not raise_error}
+    end
+
+    describe "#start" do
+      before do
+        bot.setup do
+          start do
+            say "Hello"
+          end
+        end
+      end
+      let(:output) {bot.start!;bot.output.content }
+      it "makes bot act on session start" do
+        expect(output).to eq 'Hello'
+      end
     end
   end
 end

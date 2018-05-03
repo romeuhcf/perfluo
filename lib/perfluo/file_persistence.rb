@@ -27,6 +27,7 @@ module Perfluo
     end
 
     def save!
+      memo # XXX avoiding false memo for some weird reason
       File.open(memory_file, 'w') do |fd|
         fd.write(YAML.dump(memo))
       end

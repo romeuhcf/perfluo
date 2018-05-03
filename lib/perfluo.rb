@@ -1,3 +1,4 @@
+require 'logger'
 require "perfluo/version"
 require "perfluo/memory"
 require "perfluo/listen_trigger"
@@ -9,12 +10,16 @@ module Perfluo
   class Subject
     attr_accessor :bot, :parent
 
+    def log(*args)
+      bot.log(*args)
+    end
+
     def initialize(parent = nil)
       self.parent = parent
     end
 
     def to_s
-      "#<#{self.class.name}:#{self.name}@#{self.current_subject_name}>"
+      "#<#{self.class.name}:#{self.name}@#{self.current_subject_path}>"
     end
 
     def listen_triggers
@@ -53,7 +58,6 @@ module Perfluo
       end
     end
 
-
     def root?
       parent.nil?
     end
@@ -73,6 +77,7 @@ module Perfluo
     def react_to_listen_on_subject(msg)
       self.listen_triggers.each do |trigger|
         if trigger.match?(msg)
+         log "React to listen on subject #{self} : #{msg} match #{trigger}"
           self.instance_exec(msg, &trigger.block)
           break
         end
@@ -90,6 +95,37 @@ module Perfluo
 end
 
 module Perfluo
+  class PromptManager
+    attr_reader :bot
+    def initialize(bot)
+      @bot = bot
+      @_registry = {}
+    end
+
+    def register_prompt(prompt)
+      @_registry[prompt.id] = prompt
+    end
+
+    def get_prompt(pid)
+      @_registry.fetch(pid)
+    end
+
+    def current_prompt
+      if (pid = @bot.memo[:_current_prompt_id])
+        get_prompt(pid)
+      else
+        nil
+      end
+    end
+
+    def mark_as_not_prompting!
+      @bot.memo.delete(:_current_prompt_id)
+    end
+
+    def mark_as_prompting!(prompt)
+      @bot.memo[:_current_prompt_id] = prompt.id
+    end
+  end
 
   class ContextManager
     attr_reader :bot
@@ -159,9 +195,37 @@ module Perfluo
   class Bot < Subject
     include Memory
     include Output
+    attr_writer :logger
+
+    def logger
+      @_logger ||= Logger.new('/dev/null')
+    end
+
+    def log(*args)
+      puts  *args
+    end
 
     def react_to_listen(msg)
-      current_subject.react_to_listen_on_subject(msg)
+      log "handling entry"
+      if prompting_something?
+        log "will react on prompt"
+        current_prompt.react_to_listen(msg)
+      else
+        log "will react on subject"
+        current_subject.react_to_listen_on_subject(msg)
+      end
+    end
+
+    def get_prompt(pid)
+      prompt_manager.get_prompt(pid)
+    end
+
+    def prompting_something?
+      !!current_prompt
+    end
+
+    def current_prompt
+      prompt_manager.current_prompt
     end
 
     def bot
@@ -170,6 +234,10 @@ module Perfluo
 
     def context_manager
       @_context_manager||= ContextManager.new(self)
+    end
+
+    def prompt_manager
+      @_prompt_manager||= PromptManager.new(self)
     end
 
     def current_subject
@@ -188,12 +256,35 @@ module Perfluo
       context_manager.register_subject(subject)
     end
 
+    def mark_as_prompting!(prompt)
+      prompt_manager.mark_as_prompting!(prompt)
+    end
+
+    def mark_as_not_prompting!
+      prompt_manager.mark_as_not_prompting!
+    end
+
+    def register_prompt(prompt)
+      prompt_manager.register_prompt(prompt)
+    end
+
     def subjects_stack
       context_manager.subjects_stack.map(&:path)
     end
 
     def save!
       persistence.save!
+    end
+
+    def start(&block)
+      @on_start = block
+    end
+
+    def start!
+      memo[:_started] ||= begin
+                            instance_exec(&@on_start) if @on_start
+                            true
+                          end
     end
   end
 end

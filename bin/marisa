@@ -6,23 +6,130 @@ require "perfluo"
 marisa = Perfluo::Bot.new
 
 
-marisa.setup do
-  listen /(tu?do? b.*|vo?ce? est.*|blz).*\?/i do 
-    if n = remember_that?('disse_que_to_bem')
-      if n > 2
-        say "ja disse que to bem #{n} vezes, vc é surdo?" 
+marisa.setup do   
+
+  def descreve_forma(forma)
+    "#{forma} 3 x de 1000"
+  end 
+
+  def descreve_forma_escolhida
+    descreve_forma memo[:opcao_correta]
+  end
+
+  def autenticar
+    memo[:email] = 'bla@example.com'
+    memo[:cpf] = memo[:cpf_prefix] + "45678900"
+  end
+
+  def confirm_agreement
+    say "Perfeito. Estou processando os dados e gerando seu boleto para pagamento até o dia #{memo[:vencimento]}"
+    prompt :confirm_agreement
+  end 
+
+  def confirmed?(k) 
+    v = memo[k]
+    v =~/\A[ys]\z|sim|ok|blz|uhum|yeap|yes|est[aá]|isso|exac?t|verdade|confirm|correto|👍|👌/i
+  end
+
+  set_prompt :novo_email, "Para qual email deseja que enviemos o boleto?" do
+    success do 
+      say "ok, email atualizado" 
+      memo[:email_to_send] = memo[:novo_email]
+      confirm_agreement
+    end
+    failure do 
+      say 'oops.. nao entendi seu email'
+    end
+  end
+
+  set_prompt :confirm_agreement do 
+    message { "Pronto! Para finalizar confirme a opção escolhida:  #{descreve_forma_escolhida} e o  email #{memo[:email_to_send]}"  }
+
+    success do 
+      if confirmed?(:confirm_agreement)
+        say "Ok"
+        say "Acordo formalizado com sucesso"
+        say "Adianto que vc pode programar..."
+        say "Enviei email..."
+        say "caso necessite de algo..."
       else
-        say "ja disse que to bem"
-      end
-    else
-      if remember_that?('perguntei_como_está')
-        say "tudo bem"
-      else
-        say "td bem, e vc?"
-        remember_that!('perguntei_como_está')
+        say 'Por hora essas sao as opcoes que tenho'
       end
     end
-    remember_that!('disse_que_to_bem')
+
+    failure do
+      say 'oops.. nao entendi. Voce concorda?'
+    end
+  end 
+
+  set_prompt :email_ok do 
+    message { "Seu email ainda é #{memo[:email]}?"}
+    success do 
+      if confirmed?(:email_ok)
+        say "Legal...."
+        memo[:email_to_send] = memo[:email]
+        confirm_agreement
+      else
+        prompt :novo_email
+      end
+    end
+
+    failure do 
+      say 'oops.. nao entendi'
+    end
+  end
+
+  set_prompt :opcao_correta, "Opção escolhida está correta?" do  
+    success do 
+      if confirmed?(:opcao_correta) 
+        say "Legal"
+        prompt :email_ok
+      else 
+        say "ok, então qual vc deseja?"
+        prompt :forma_parcelamento
+      end
+    end
+    failure do 
+      say 'oops.. nao entendi'
+    end
+  end
+
+  set_prompt :forma_parcelamento, ["A - A vista  R$ 1000,00", "B - 2x 500   R$ 1000,00", "C - 4x 250   R$ 1000,00", "D - 5x 200   R$ 1000,00", "E - 10x 100   R$ 1000,00", "F Nenhuma forma te ajuda"].join("\n") do 
+    validates { |v|  v.in? %w[A B C D E F]}
+
+    success do 
+      say "Entendido! Você selecionou pagar em #{descreve_forma(memo[:forma_parcelamento])}"
+      prompt :opcao_correta 
+    end 
+
+    failure do 
+      say 'oops.. opcao escolhida invalida'
+    end
+  end
+
+  set_prompt :cpf_prefix, "Quais são os 3 primeiros números do seu CPF?" do
+    success do 
+      say "procurando seu cadastro..."
+     autenticar 
+      say "Ótimo, acabei de confrmar o seu CPF: #{memo[:cpf]} "
+      
+      say "Seu débito é de R$ #{memo[:cpf_prefix].to_i * 2},99 e consegui ótimas condições de pagamento. "
+      
+      say "O vencimento é para 25 de dezembro. Veja a forma que melhor atende a sua necessidade:"
+      
+      prompt :forma_parcelamento
+    end
+    failure do 
+      say 'oops.. tem certeza que esses são os 3 dígitos iniciais do seu cpf?'
+    end
+  end
+
+  listen // do 
+    say [["Se precisar de mais alguma informacao chame 08002222222", "Você pode aproveitar e visitar www.marisa.com.br"]]
+  end
+  start do 
+    say ["Que bom poder falar com você.","Sou a Ana, assistente virtual do Carão Marisa e gostaria de apresentar uma oportunidade incrível para você regularizar seu débito.", "Para ter acesso às condições oferecidas, precisamos que confirme algumas informações." ] 
+    prompt :cpf_prefix 
   end
 end
 
@@ -30,7 +137,15 @@ memofile = "memo-#{ARGV.shift}.yml"
 
 
 marisa.persistence = Perfluo::FilePersistence.new(memofile)
+marisa.logger = Logger.new(STDOUT)
+marisa.output = Perfluo::TerminalOutput.new
+marisa.start!
+if ARGV.any?
+  msg = ARGV.flatten.join(' ') 
+  puts "<< #{msg}"
 
-marisa.react_to_listen ARGV.flatten.join(' ') 
-puts marisa.output.content
+  marisa.react_to_listen( msg )
+end
+
 marisa.save! 
+

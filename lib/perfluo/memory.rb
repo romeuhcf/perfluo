@@ -9,19 +9,10 @@ module Perfluo
       @persistence ||= NullPersistence.new
     end
 
-     def persistence=(p)
-       @persistence = p
-     end
-=begin
-    def listened
-      memo['listened']||=[]
+    def persistence=(p)
+      @persistence = p
     end
 
-    def last_listened_msg
-      memo['listened']||=[]
-      memo['listened'].last
-    end
-=end
     def remember_that?(algo)
       n = flags[algo]
       n && (n == 0 ? nil : n)

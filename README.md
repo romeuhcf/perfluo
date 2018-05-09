@@ -1,84 +1,163 @@
 # Perfluo
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/perfluo`. To experiment with that code, run `bin/console` for an interactive prompt.
-
-TODO: Delete this and the text above, and describe your gem
+Humble chat bot system
 
 ## Installation
 
 Add this line to your application's Gemfile:
-
+ 
 ```ruby
-gem 'perfluo'
-
-    bot.listen /\A\z/ do
-      say [
-        "opa, diga lá?",
-        "opa",
-        "fala",
-        "?"
-      ].sample
-    end
-
-
-    bot.listen /(tu?do? b.*|vo?ce? est.*|blz).*\?/i do
-      if n = remember_that?('disse_que_to_bem')
-        if n > 2
-          say "ja disse que to bem #{n} vezes, vc é surdo?"
-        else
-          say "ja disse que to bem"
-        end
-      else
-        if remember_that?('perguntei_como_está')
-          say "tudo bem"
-        else
-          say "td bem, e vc?"
-          remember_that!('perguntei_como_está')
-        end
-      end
-      remember_that!('disse_que_to_bem')
-    end
-
-    bot.listen /e?s?tou? bem/ do
-      say "que bom"
-    end
-
-    bot.listen /\?\z/ do
-      say ["oi?", "sei lá, procura do google"]
-    end
-
-    bot.listen [/bolet/, /(atra[sz]|via|novo)\//], case: :all do
-      confirm("Posso emitir um boleto agora pra vc. Vc quer?", :emitir_boleto)
-    end
-
-    bot.listen // do
-      say ["mano, to ocupado!", ["faz o seguinte,...", "me chama depois"] ].sample
-    end
-
+gem perfluo 
 ```
 
-And then execute:
+## Example
 
-    $ bundle
+```ruby  
 
-Or install it yourself as:
+require "perfluo"
 
-    $ gem install perfluo
+bot = Perfluo::Bot.new
 
-## Usage
+bot.setup do   
 
-TODO: Write usage instructions here
+  def descreve_forma(forma)
+    "#{forma} 3 x de 1000"
+  end 
 
-## Development
+  def descreve_forma_escolhida
+    descreve_forma memo[:opcao_correta]
+  end
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+  def autenticar
+    memo[:email] = 'bla@example.com'
+    memo[:cpf] = memo[:cpf_prefix] + "45678900"
+  end
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and tags, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+  def confirm_agreement
+    say "Perfeito. Estou processando os dados e gerando seu boleto para pagamento até o dia #{memo[:vencimento]}"
+    prompt :confirm_agreement
+  end 
 
-## Contributing
+  def confirmed?(k) 
+    v = memo[k]
+    v =~/\A[ys]\z|sim|ok|blz|uhum|yeap|yes|est[aá]|isso|exac?t|verdade|confirm|correto|👍|👌/i
+  end
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/perfluo.
+  set_prompt :novo_email, "Para qual email deseja que enviemos o boleto?" do
+    success do 
+      say "ok, email atualizado" 
+      memo[:email_to_send] = memo[:novo_email]
+      confirm_agreement
+    end
+    failure do 
+      say 'oops.. nao entendi seu email'
+    end
+  end
 
-## License
+  set_prompt :confirm_agreement do 
+    message { "Pronto! Para finalizar confirme a opção escolhida:  #{descreve_forma_escolhida} e o  email #{memo[:email_to_send]}"  }
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+    success do 
+      if confirmed?(:confirm_agreement)
+        say "Ok"
+        say "Acordo formalizado com sucesso"
+        say "Adianto que vc pode programar..."
+        say "Enviei email..."
+        say "caso necessite de algo..."
+      else
+        say 'Por hora essas sao as opcoes que tenho'
+      end
+    end
+
+    failure do
+      say 'oops.. nao entendi. Voce concorda?'
+    end
+  end 
+
+  set_prompt :email_ok do 
+    message { "Seu email ainda é #{memo[:email]}?"}
+    success do 
+      if confirmed?(:email_ok)
+        say "Legal...."
+        memo[:email_to_send] = memo[:email]
+        confirm_agreement
+      else
+        prompt :novo_email
+      end
+    end
+
+    failure do 
+      say 'oops.. nao entendi'
+    end
+  end
+
+  set_prompt :opcao_correta, "Opção escolhida está correta?" do  
+    success do 
+      if confirmed?(:opcao_correta) 
+        say "Legal"
+        prompt :email_ok
+      else 
+        say "ok, então qual vc deseja?"
+        prompt :forma_parcelamento
+      end
+    end
+    failure do 
+      say 'oops.. nao entendi'
+    end
+  end
+
+  set_prompt :forma_parcelamento, ["A - A vista  R$ 1000,00", "B - 2x 500   R$ 1000,00", "C - 4x 250   R$ 1000,00", "D - 5x 200   R$ 1000,00", "E - 10x 100   R$ 1000,00", "F Nenhuma forma te ajuda"].join("\n") do 
+    validates { |v|  v.in? %w[A B C D E F]}
+
+    success do 
+      say "Entendido! Você selecionou pagar em #{descreve_forma(memo[:forma_parcelamento])}"
+      prompt :opcao_correta 
+    end 
+
+    failure do 
+      say 'oops.. opcao escolhida invalida'
+    end
+  end
+
+  set_prompt :cpf_prefix, "Quais são os 3 primeiros números do seu CPF?" do
+    success do 
+      say "procurando seu cadastro..."
+     autenticar 
+      say "Ótimo, acabei de confrmar o seu CPF: #{memo[:cpf]} "
+      
+      say "Seu débito é de R$ #{memo[:cpf_prefix].to_i * 2},99 e consegui ótimas condições de pagamento. "
+      
+      say "O vencimento é para 25 de dezembro. Veja a forma que melhor atende a sua necessidade:"
+      
+      prompt :forma_parcelamento
+    end
+    failure do 
+      say 'oops.. tem certeza que esses são os 3 dígitos iniciais do seu cpf?'
+    end
+  end
+
+  listen // do 
+    say [["Se precisar de mais alguma informacao chame 08002222222", "Você pode aproveitar e visitar www.bot.com.br"]]
+  end
+  start do 
+    say ["Que bom poder falar com você.","Sou a Ana, assistente virtual do Carão Marisa e gostaria de apresentar uma oportunidade incrível para você regularizar seu débito.", "Para ter acesso às condições oferecidas, precisamos que confirme algumas informações." ] 
+    prompt :cpf_prefix 
+  end
+end
+
+memofile = "memo-#{ARGV.shift}.yml"
+
+bot.persistence = Perfluo::FilePersistence.new(memofile)
+bot.logger = Logger.new(STDOUT)
+bot.output = Perfluo::TerminalOutput.new
+bot.start!
+if ARGV.any?
+  msg = ARGV.flatten.join(' ') 
+  puts "<< #{msg}"
+
+  bot.react_to_listen( msg )
+end
+
+bot.save! 
+
+```

@@ -7,7 +7,7 @@ Humble chat bot system
 Add this line to your application's Gemfile:
  
 ```ruby
-gem perfluo 
+gem 'perfluo', github: 'romeuhcf/perfluo' 
 ```
 
 ## Example

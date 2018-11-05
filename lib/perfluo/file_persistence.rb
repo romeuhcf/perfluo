@@ -1,13 +1,13 @@
+# frozen_string_literal: true
+
 require 'yaml'
 module Perfluo
-
   class NullPersistence
     def memo
       @_memo ||= {}
     end
-    def save!
 
-    end
+    def save!; end
   end
 
   class FilePersistence
@@ -17,13 +17,11 @@ module Perfluo
     end
 
     def memo
-      @_memo ||= begin
-                   File.open(memory_file, 'r') do |fd|
-                     YAML.load(fd.read)
-                   end
-                 rescue
-                   {}
-                 end
+      File.open(memory_file, 'r') do |fd|
+        YAML.safe_load(fd.read)
+      end
+    rescue StandardError
+      {}
     end
 
     def save!
@@ -34,4 +32,3 @@ module Perfluo
     end
   end
 end
-

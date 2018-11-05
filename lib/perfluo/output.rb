@@ -1,7 +1,9 @@
+# frozen_string_literal: true
+
 require_relative 'null_output'
 module Perfluo
   class Prompt
-    def initialize(bot, memo_id, msgs=nil)
+    def initialize(bot, memo_id, msgs = nil)
       @bot = bot
       @msgs = msgs
       @memo_id = memo_id
@@ -34,14 +36,14 @@ module Perfluo
              when Array
                @msgs
              when Proc
-               instance_exec( &@msgs )
+               instance_exec(&@msgs)
              end
 
       msgs = [msgs].flatten
 
       msgs.each_with_index do |msg, index|
         is_last = index == msgs.count - 1
-        if is_last and @options
+        if is_last && @options
           menu msg, @options
         else
           say msg
@@ -99,9 +101,7 @@ module Perfluo
       instance_exec(&@failure) if @failure
     end
 
-    def bot
-      @bot
-    end
+    attr_reader :bot
 
     def method_missing(name, *args, &block)
       if bot.respond_to? name
@@ -112,15 +112,16 @@ module Perfluo
     end
 
     protected
-    def valid?(value)
-      #TODO
-      true
-    end
+
+      def valid?(_value)
+        # TODO
+        true
+      end
   end
 
   module Output
     def output
-      @output || fail( "null output" )
+      @output || raise('null output')
     end
 
     def output=(o)
@@ -143,7 +144,7 @@ module Perfluo
       output.menu(message, options)
     end
 
-    def set_prompt(memo_id, msgs=nil, &block)
+    def set_prompt(memo_id, msgs = nil, &block)
       prompt = Perfluo::Prompt.new(self, memo_id, msgs)
       prompt.instance_exec(&block)
       bot.register_prompt(prompt)

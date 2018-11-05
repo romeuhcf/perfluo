@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Perfluo
   class NullOutput
     attr_reader :content
@@ -6,7 +8,7 @@ module Perfluo
       @content = nil
     end
 
-    def say(s, **extra)
+    def say(s, **_extra)
       @content = [@content, s].compact.join("\n")
     end
   end
@@ -17,7 +19,7 @@ module Perfluo
   class TerminalOutput
     def say(s)
       (s.to_s.size / 5).times do
-        ell = ['.  ', '.. ', '...', ' ..' , '  .' , '   ', '. .'].sample
+        ell = ['.  ', '.. ', '...', ' ..', '  .', '   ', '. .'].sample
         $stdout.write "[Ana está digitando #{ell}]\r".blue
         sleep 0.1
       end

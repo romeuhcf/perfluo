@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'file_persistence'
 module Perfluo
   module Memory
@@ -19,15 +21,15 @@ module Perfluo
     end
 
     def remember_that!(algo)
-      flags[algo]||=0
-      flags[algo]+=1
+      flags[algo] ||= 0
+      flags[algo] += 1
     end
+
     private
-    def flags
-      memo['flags'] ||= {}
-      memo['flags']
-    end
 
-
+      def flags
+        memo['flags'] ||= {}
+        memo['flags']
+      end
   end
 end

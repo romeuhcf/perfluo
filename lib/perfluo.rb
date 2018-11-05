@@ -1,9 +1,11 @@
+# frozen_string_literal: true
+
 require 'logger'
-require "perfluo/version"
-require "perfluo/memory"
-require "perfluo/listen_trigger"
-require "perfluo/output"
-require "perfluo/brain"
+require 'perfluo/version'
+require 'perfluo/memory'
+require 'perfluo/listen_trigger'
+require 'perfluo/output'
+require 'perfluo/brain'
 
 module Perfluo
   SELF_CONTEXT_NAME = 'self'
@@ -19,7 +21,7 @@ module Perfluo
     end
 
     def to_s
-      "#<#{self.class.name}:#{self.name}@#{self.current_subject_path}>"
+      "#<#{self.class.name}:#{name}@#{current_subject_path}>"
     end
 
     def listen_triggers
@@ -34,14 +36,14 @@ module Perfluo
       @_subject_name ||= SELF_CONTEXT_NAME
     end
 
-    def listen(matchers, options={}, &block)
-      self.listen_triggers << ListenTrigger.new(self, matchers, options, &block)
+    def listen(matchers, options = {}, &block)
+      listen_triggers << ListenTrigger.new(self, matchers, options, &block)
     end
 
     def about(subject_name, &block)
       Subject.new(self).tap do |subject|
         subject.name = subject_name
-        subject.bot = self.bot
+        subject.bot = bot
         subject.instance_exec &block
         bot.register_subject(subject)
       end
@@ -52,9 +54,9 @@ module Perfluo
     end
 
     %w[enter leave return].each do |moment|
-      define_method "trigger_#{moment}"  do
+      define_method "trigger_#{moment}" do
         hook = instance_variable_get("@on_#{moment}")
-        instance_exec( &hook) if hook
+        instance_exec(&hook) if hook
       end
     end
 
@@ -66,7 +68,7 @@ module Perfluo
       if root?
         '/'
       else
-        File.join(parent.path , self.name)
+        File.join(parent.path, name)
       end
     end
 
@@ -75,12 +77,12 @@ module Perfluo
     end
 
     def react_to_listen_on_subject(msg)
-      self.listen_triggers.each do |trigger|
-        if trigger.match?(msg)
-          log "React to listen on subject #{self} : #{msg} match #{trigger}"
-          self.instance_exec(msg, &trigger.block)
-          break
-        end
+      listen_triggers.each do |trigger|
+        next unless trigger.match?(msg)
+
+        log "React to listen on subject #{self} : #{msg} match #{trigger}"
+        instance_exec(msg, &trigger.block)
+        break
       end
     end
 
@@ -95,9 +97,7 @@ module Perfluo
 end
 
 module Perfluo
-
   class UnexistingPrompt < ArgumentError
-
   end
   class PromptManager
     attr_reader :bot
@@ -120,10 +120,8 @@ module Perfluo
           p
         else
           mark_as_not_prompting!
-          fail UnexistingPrompt, pid
+          raise UnexistingPrompt, pid
         end
-      else
-        nil
       end
     end
 
@@ -185,11 +183,11 @@ module Perfluo
 
       return unless old_sub != new_sub
 
-      if subject_was_mentioned_earlier = self.subjects_stack.include?(new_sub)
-        self.subjects_stack.delete(new_sub)
+      if subject_was_mentioned_earlier = subjects_stack.include?(new_sub)
+        subjects_stack.delete(new_sub)
       end
 
-      self.subjects_stack.push(new_sub)
+      subjects_stack.push(new_sub)
 
       if subject_was_mentioned_earlier
         new_sub.trigger_return
@@ -219,19 +217,16 @@ module Perfluo
     end
 
     def react_to_listen(msg)
-      begin
-        log "handling entry"
-        if prompting_something?
-          log "will react on prompt"
-          current_prompt.react_to_listen(msg)
-        else
-          log "will react on subject"
-          current_subject.react_to_listen_on_subject(msg)
-        end
-
-      rescue Perfluo::UnexistingPrompt
-        react_to_listen(msg)
+      log 'handling entry'
+      if prompting_something?
+        log 'will react on prompt'
+        current_prompt.react_to_listen(msg)
+      else
+        log 'will react on subject'
+        current_subject.react_to_listen_on_subject(msg)
       end
+    rescue Perfluo::UnexistingPrompt
+      react_to_listen(msg)
     end
 
     def get_prompt(pid)
@@ -251,11 +246,11 @@ module Perfluo
     end
 
     def context_manager
-      @_context_manager||= ContextManager.new(self)
+      @_context_manager ||= ContextManager.new(self)
     end
 
     def prompt_manager
-      @_prompt_manager||= PromptManager.new(self)
+      @_prompt_manager ||= PromptManager.new(self)
     end
 
     def current_subject

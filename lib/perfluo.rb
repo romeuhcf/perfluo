@@ -77,7 +77,7 @@ module Perfluo
     def react_to_listen_on_subject(msg)
       self.listen_triggers.each do |trigger|
         if trigger.match?(msg)
-         log "React to listen on subject #{self} : #{msg} match #{trigger}"
+          log "React to listen on subject #{self} : #{msg} match #{trigger}"
           self.instance_exec(msg, &trigger.block)
           break
         end
@@ -95,6 +95,10 @@ module Perfluo
 end
 
 module Perfluo
+
+  class UnexistingPrompt < ArgumentError
+
+  end
   class PromptManager
     attr_reader :bot
     def initialize(bot)
@@ -107,12 +111,17 @@ module Perfluo
     end
 
     def get_prompt(pid)
-      @_registry.fetch(pid)
+      @_registry[pid]
     end
 
     def current_prompt
       if (pid = @bot.memo[:_current_prompt_id])
-        get_prompt(pid)
+        if p = get_prompt(pid)
+          p
+        else
+          mark_as_not_prompting!
+          fail UnexistingPrompt, pid
+        end
       else
         nil
       end
@@ -202,17 +211,26 @@ module Perfluo
     end
 
     def log(*args)
-      puts  *args
+      puts *args
+    end
+
+    def initialize
+      @output = NullOutput.new
     end
 
     def react_to_listen(msg)
-      log "handling entry"
-      if prompting_something?
-        log "will react on prompt"
-        current_prompt.react_to_listen(msg)
-      else
-        log "will react on subject"
-        current_subject.react_to_listen_on_subject(msg)
+      begin
+        log "handling entry"
+        if prompting_something?
+          log "will react on prompt"
+          current_prompt.react_to_listen(msg)
+        else
+          log "will react on subject"
+          current_subject.react_to_listen_on_subject(msg)
+        end
+
+      rescue Perfluo::UnexistingPrompt
+        react_to_listen(msg)
       end
     end
 

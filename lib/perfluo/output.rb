@@ -1,6 +1,5 @@
 require_relative 'null_output'
 module Perfluo
-
   class Prompt
     def initialize(bot, memo_id, msgs=nil)
       @bot = bot
@@ -16,21 +15,37 @@ module Perfluo
       @msgs = message
     end
 
+    def options(options = nil)
+      @options = options
+    end
+
     def log(*args)
       @bot.log(*args)
     end
-    def run
-      msg = case @msgs
-            when String
-              @msgs
-            when Array
-              @msgs.sample
-            when Proc
-              instance_exec &@msgs
-            end
 
-      [msg].flatten.each do |msg|
-        @bot.say msg
+    def run
+      run_message
+    end
+
+    def run_message
+      msgs = case @msgs
+             when String
+               @msgs
+             when Array
+               @msgs
+             when Proc
+               instance_exec( &@msgs )
+             end
+
+      msgs = [msgs].flatten
+
+      msgs.each_with_index do |msg, index|
+        is_last = index == msgs.count - 1
+        if is_last and @options
+          menu msg, @options
+        else
+          say msg
+        end
       end
     end
 
@@ -42,13 +57,13 @@ module Perfluo
               end
 
       if valid?(value)
-         log "React to listen on Prompt #{self} : #{msg} -> valid entry"
+        log "React to listen on Prompt #{self} : #{msg} -> valid entry"
         @bot.memo[id] = value
         @bot.mark_as_not_prompting!
         on_success
       else
-         log "React to listen on Prompt #{self} : #{msg} -> INvalid entry"
-         on_failure
+        log "React to listen on Prompt #{self} : #{msg} -> INvalid entry"
+        on_failure
       end
     end
 
@@ -73,7 +88,7 @@ module Perfluo
     end
 
     def on_success
-      instance_exec &@success if @success
+      instance_exec(&@success) if @success
     end
 
     def failure(&block)
@@ -81,12 +96,13 @@ module Perfluo
     end
 
     def on_failure
-      instance_exec &@failure if @failure
+      instance_exec(&@failure) if @failure
     end
 
     def bot
       @bot
     end
+
     def method_missing(name, *args, &block)
       if bot.respond_to? name
         bot.send(name, *args, &block)
@@ -94,6 +110,7 @@ module Perfluo
         super
       end
     end
+
     protected
     def valid?(value)
       #TODO
@@ -103,7 +120,7 @@ module Perfluo
 
   module Output
     def output
-      @output ||= NullOutput.new
+      @output || fail( "null output" )
     end
 
     def output=(o)
@@ -111,7 +128,7 @@ module Perfluo
     end
 
     def say(this)
-      [this].flatten.each do |it|
+      [this].flatten.compact.each do |it|
         output.say it
       end
     end
@@ -122,8 +139,12 @@ module Perfluo
       mark_as_prompting!(prompt)
     end
 
+    def menu(message, options)
+      output.menu(message, options)
+    end
+
     def set_prompt(memo_id, msgs=nil, &block)
-      prompt = Prompt.new(self, memo_id, msgs)
+      prompt = Perfluo::Prompt.new(self, memo_id, msgs)
       prompt.instance_exec(&block)
       bot.register_prompt(prompt)
     end

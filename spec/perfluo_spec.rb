@@ -133,7 +133,7 @@ module Perfluo
       let(:input) {'boleto'}
       describe "case all" do
         before do
-          bot.listen  [/segunda via/, /boleto/], {case: :all} do
+          bot.listen([/segunda via/, /boleto/], case: :all) do
             say "vc quer segunda via"
           end
         end
@@ -148,7 +148,7 @@ module Perfluo
       end
 
       context "case any" do
-        before{ bot.listen  [/2via fatura/, /boleto/] {  say "vc quer segunda via" } }
+        before{ bot.listen([/2via fatura/, /boleto/]){  say "vc quer segunda via" } }
 
         it "is self behaviour" do
           expect(output).to eq "vc quer segunda via"
@@ -161,11 +161,12 @@ module Perfluo
       context "multiple matchable listens" do
         let(:input) { "foo" }
         before do
-          bot.listen  [/aaa/] {  say "noop" }
-          bot.listen  [/fo/] {  say "first trigger" }
-          bot.listen  [/bbb/] {  say "noop" }
-          bot.listen  [/oo/] {  say "second trigger" }
-          bot.listen  [/ccc/] {  say "noop" }
+          bot.listen([/aaa/]) {  say "noop" }
+          bot.listen([/fo/]){  say "first trigger" }
+          bot.listen([/bbb/]){  say "noop" }
+          bot.listen([/oo/]){  say "second trigger" }
+
+          bot.listen([/ccc/]) {  say "noop" }
         end
 
         it "matches the first only" do

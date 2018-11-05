@@ -6,7 +6,7 @@ module Perfluo
       @content = nil
     end
 
-    def say(s)
+    def say(s, **extra)
       @content = [@content, s].compact.join("\n")
     end
   end

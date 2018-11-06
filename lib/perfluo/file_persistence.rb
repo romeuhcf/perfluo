@@ -12,23 +12,24 @@ module Perfluo
 
   class FilePersistence
     attr_accessor :memory_file
+    attr_reader :memo
+
     def initialize(memory_file)
       @memory_file = memory_file
-    end
-
-    def memo
-      File.open(memory_file, 'r') do |fd|
-        YAML.safe_load(fd.read)
-      end
-    rescue StandardError
-      {}
+      @memo = read_memo
     end
 
     def save!
-      memo # XXX avoiding false memo for some weird reason
       File.open(memory_file, 'w') do |fd|
-        fd.write(YAML.dump(memo))
+        fd.write(YAML.dump(self.memo))
       end
     end
+
+    protected
+      def read_memo
+        return YAML.safe_load(IO.read(memory_file), [Symbol])
+      rescue StandardError
+        {}
+      end
   end
 end

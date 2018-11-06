@@ -209,7 +209,7 @@ module Perfluo
     end
 
     def log(*args)
-      puts *args
+      $sterr.puts *args if ENV['DEBUG']
     end
 
     def initialize
